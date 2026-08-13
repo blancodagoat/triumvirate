@@ -1,0 +1,50 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Test
+        run: |
+          if (Test-Path tests/Triumvirate.Tests) {
+            dotnet run --project tests/Triumvirate.Tests
+          } else {
+            Write-Host "No tests project yet; skipping."
+          }
+
+      - name: Publish (framework-dependent)
+        run: dotnet publish src/Triumvirate/Triumvirate.csproj -c Release -p:SelfContained=false -o publish/framework-dependent
+
+      - name: Publish (self-contained)
+        run: dotnet publish src/Triumvirate/Triumvirate.csproj -c Release -o publish/self-contained
+
+      - name: Release
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_type == 'tag' && github.ref_name || 'latest' }}
+        run: |
+          Copy-Item publish/self-contained/Triumvirate.exe Triumvirate-self-contained.exe
+          gh release delete $env:TAG --yes --cleanup-tag
+          if ($LASTEXITCODE -ne 0) { "no previous release to replace" }
+          # The tag ref must not exist when the release is created: from Actions, a
+          # release on a pre-existing tag trips workflow-scope enforcement (HTTP 403)
+          # once the release span touches .github/workflows. Recreating the tag via
+          # the release itself is the same path the rolling latest release takes.
+          gh api -X DELETE "repos/$env:GITHUB_REPOSITORY/git/refs/tags/$env:TAG"
+          if ($LASTEXITCODE -ne 0) { "tag ref already absent" }
+          gh release create $env:TAG publish/framework-dependent/Triumvirate.exe Triumvirate-self-contained.exe --target $env:GITHUB_SHA --generate-notes
