@@ -18,6 +18,7 @@
   <ItemGroup>
     <Compile Include="Tests.cs" />
     <!-- The production sources under test, compiled in directly rather than duplicated. -->
+    <Compile Include="..\..\src\Triumvirate\Elevation.cs" />
     <Compile Include="..\..\src\Triumvirate\SuiteConfig.cs" />
     <Compile Include="..\..\src\Triumvirate\Tool.cs" />
   </ItemGroup>

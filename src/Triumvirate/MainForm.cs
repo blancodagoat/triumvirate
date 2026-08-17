@@ -185,7 +185,7 @@ internal sealed class MainForm : Form
                 {
                     updated++;
                 }
-                else if (outcome.StartsWith("Up to date") || outcome.StartsWith("Managed by scoop"))
+                else if (outcome.StartsWith("Up to date"))
                 {
                     current++;
                 }
@@ -388,11 +388,11 @@ internal sealed class MainForm : Form
             }
 
             // The tools read config at startup, so applying means a restart. They come
-            // back in under a second; DejaVu additionally resets its rolling buffer.
+            // back in under a second, and back at the privilege they were found at — a
+            // tool restarted down from administrator keeps its hotkey dead in games.
             if (changed && tool.IsRunning())
             {
-                await tool.StopAsync();
-                tool.Start();
+                tool.Start(await tool.StopAsync());
             }
 
             apply.Text = changed ? "Applied" : "No changes";
