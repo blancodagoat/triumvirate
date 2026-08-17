@@ -216,5 +216,34 @@ void Eq(string name, object? actual, object? expected) =>
     }
 }
 
+// Test 6: the elevation probe behind "restart it the way it was running"
+{
+    // Read through the token, our own process must agree with the identity API. A probe
+    // that is quietly always-false is the dangerous outcome: it would restart every
+    // elevated tool as a normal one and kill its hotkey in games without a word.
+    Check("own process elevation matches WindowsPrincipal",
+        Elevation.IsProcessElevated(Environment.ProcessId) == Elevation.IsElevated,
+        $"probe said {Elevation.IsProcessElevated(Environment.ProcessId)}, "
+            + $"identity says {Elevation.IsElevated}");
+
+    // A pid that cannot exist stands in for "the process left while we looked": from a
+    // normal suite that is indistinguishable from a refusal, and biasing toward elevated
+    // costs a UAC prompt where the other way costs a silently broken hotkey.
+    bool threw = false;
+    bool gone = false;
+    try
+    {
+        gone = Elevation.IsProcessElevated(-1);
+    }
+    catch (Exception ex)
+    {
+        threw = true;
+        Console.WriteLine($"DETAIL: IsProcessElevated threw: {ex.Message}");
+    }
+
+    Check("a dead pid does not throw", !threw);
+    Check("a dead pid answers, biased away from silent de-elevation", threw || gone != Elevation.IsElevated);
+}
+
 Console.WriteLine($"{passed} passed, {failed} failed");
 return failed == 0 ? 0 : 1;
